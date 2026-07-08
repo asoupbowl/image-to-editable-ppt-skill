@@ -1,0 +1,55 @@
+name: Verify CUSU native-shape artifact
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify-cusu-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Reassemble, verify, and upload artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload_dir="artifact_payload/cusu-7-slides-native-shape"
+          zip_path="cusu-7-slides-native-shape.zip"
+          test -d "$payload_dir"
+          cat "$payload_dir"/chunk-* | base64 --decode > "$zip_path"
+          sha256sum -c "$payload_dir/SHA256SUMS"
+          unzip -t "$zip_path"
+          unzip -Z1 "$zip_path" | sort > actual-zip-contents.txt
+          cat > expected-zip-contents.txt <<'EOF'
+          cusu-7-slides-native-shape/
+          cusu-7-slides-native-shape/cusu-7-slides-native-shape.pptx
+          cusu-7-slides-native-shape/page-validations/
+          cusu-7-slides-native-shape/page-validations/page_001-validation.json
+          cusu-7-slides-native-shape/page-validations/page_002-validation.json
+          cusu-7-slides-native-shape/page-validations/page_003-validation.json
+          cusu-7-slides-native-shape/page-validations/page_004-validation.json
+          cusu-7-slides-native-shape/page-validations/page_005-validation.json
+          cusu-7-slides-native-shape/page-validations/page_006-validation.json
+          cusu-7-slides-native-shape/page-validations/page_007-validation.json
+          cusu-7-slides-native-shape/previews/
+          cusu-7-slides-native-shape/previews/page_001.png
+          cusu-7-slides-native-shape/previews/page_002.png
+          cusu-7-slides-native-shape/previews/page_003.png
+          cusu-7-slides-native-shape/previews/page_004.png
+          cusu-7-slides-native-shape/previews/page_005.png
+          cusu-7-slides-native-shape/previews/page_006.png
+          cusu-7-slides-native-shape/previews/page_007.png
+          cusu-7-slides-native-shape/reconstruction-report.md
+          cusu-7-slides-native-shape/validation.json
+          EOF
+          sed -i 's/^          //' expected-zip-contents.txt
+          diff -u expected-zip-contents.txt actual-zip-contents.txt
+
+      - name: Upload CUSU native-shape artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cusu-7-slides-native-shape
+          path: cusu-7-slides-native-shape.zip
+          if-no-files-found: error
