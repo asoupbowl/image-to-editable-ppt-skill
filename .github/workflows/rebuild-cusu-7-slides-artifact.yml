@@ -1,0 +1,54 @@
+name: Rebuild CUSU 7-slide artifact
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - artifact_payload/cusu-7-slides/**
+      - .github/workflows/rebuild-cusu-7-slides-artifact.yml
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild ZIP from Base64 chunks
+        run: |
+          set -euo pipefail
+          cat artifact_payload/cusu-7-slides/part-*.txt > /tmp/cusu-7-slides.b64
+          base64 -d /tmp/cusu-7-slides.b64 > cusu-7-slides-abtest.zip
+      - name: Verify ZIP integrity
+        run: unzip -t cusu-7-slides-abtest.zip
+      - name: Verify expected ZIP entries
+        run: |
+          set -euo pipefail
+          unzip -Z1 cusu-7-slides-abtest.zip | sort > /tmp/actual.txt
+          cat > /tmp/expected.txt <<'EOF'
+          final-cusu-7-slides.pptx
+          page-validations/slide_01-validation.json
+          page-validations/slide_02-validation.json
+          page-validations/slide_03-validation.json
+          page-validations/slide_04-validation.json
+          page-validations/slide_05-validation.json
+          page-validations/slide_06-validation.json
+          page-validations/slide_07-validation.json
+          previews/slide_01.png
+          previews/slide_02.png
+          previews/slide_03.png
+          previews/slide_04.png
+          previews/slide_05.png
+          previews/slide_06.png
+          previews/slide_07.png
+          reconstruction-report.md
+          validation.json
+          EOF
+          diff -u /tmp/expected.txt /tmp/actual.txt
+      - name: Verify SHA256
+        run: |
+          set -euo pipefail
+          echo "5b1ffa6cab9cc9f05f63d9b526d41018eda633e2800c453ea875247fc9c1b3e9  cusu-7-slides-abtest.zip" | sha256sum -c -
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cusu-7-slides-abtest
+          path: cusu-7-slides-abtest.zip
