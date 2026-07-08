@@ -1,0 +1,47 @@
+name: Rebuild AB test artifact
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - artifact_payload/observation-slide/**
+      - .github/workflows/rebuild-abtest-artifact.yml
+
+jobs:
+  rebuild-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Rebuild ZIP from text chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rebuilt-artifact
+          cat artifact_payload/observation-slide/part-*.txt > rebuilt-artifact/observation-slide-abtest.zip.b64
+          base64 --decode rebuilt-artifact/observation-slide-abtest.zip.b64 > rebuilt-artifact/observation-slide-abtest.zip
+          unzip -t rebuilt-artifact/observation-slide-abtest.zip
+          python3 - <<'PY'
+          import sys
+          import zipfile
+
+          expected = [
+              "observation-slide_edited.pptx",
+              "preview.png",
+              "validation.json",
+          ]
+          with zipfile.ZipFile("rebuilt-artifact/observation-slide-abtest.zip") as archive:
+              names = archive.namelist()
+          if names != expected:
+              print(f"Unexpected ZIP contents: {names!r}", file=sys.stderr)
+              print(f"Expected: {expected!r}", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Upload rebuilt artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: observation-slide-abtest
+          path: rebuilt-artifact/observation-slide-abtest.zip
+          if-no-files-found: error
